@@ -14,35 +14,39 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pham Doan HIeu");
 MODULE_DESCRIPTION("Creates /proc entry with read/write functionality.");
 
-static char *message = NULL;
+static char *message = "Initial message";
+static char *moduleName = "proc_rw";
 
-
-static ssize_t write_msg(struct file *file, const char __user *buff, size_t cnt, loff_t *f_pos){
-	char *temp = kzalloc((cnt+1),GFP_KERNEL); //allocate memory, (size and flag) - flag: type of memory
-
+static ssize_t write_msg(struct file *file, const char __user *buffer, size_t length, loff_t *f_pos){
+	char *temp = kzalloc((length+1),GFP_KERNEL); //allocate memory, (size and flag) - flag: type of memory
+	
 	if(!temp){
-		return -ENOMEM;
+		return -ENOMEM; //
 	}
 
-	if(copy_from_user(temp,buff,cnt)){
+	if(copy_from_user(temp,buffer,length)){ //on failed
 		kfree(temp);	//free memory
-		return EFAULT;
+		return EFAULT; 
 	}
 
 	kfree(message);	//free memory
 	message=temp;
-	return cnt;
+	printk(KERN_INFO "write succesfull!\n"	);
+	return length;
 }
 
 /*-----------------------------------------------------------------------*/
 //open, read, print message
 /*-----------------------------------------------------------------------*/
 static int show_the_proc(struct seq_file *a, void *v){
+	printk(KERN_INFO "reading %s.....\n",moduleName);
 	seq_printf(a,"%s\n",message);
+
 	return 0;
 }
 
 static int open_the_proc(struct inode *inode, struct file *file){
+	printk(KERN_INFO "opening %s.....\n", moduleName);
 	return single_open(file,show_the_proc,NULL);
 }
 
@@ -62,17 +66,19 @@ static struct proc_ops new_fops={
 /*-----------------------------------------------------------------------*/
 //start
 /*-----------------------------------------------------------------------*/
-static int __init devstate_init(void){
+static int __init proc_init(void){
 
 	struct proc_dir_entry *new;
 
-	new = proc_create("proc_rw", 0777, NULL, &new_fops); //create proc entry
+	new = proc_create(moduleName, 0777, NULL, &new_fops); //create proc entry
 
 	if(!new) {
 		return -1;
 	}
 	else {
-		printk(KERN_INFO "Loading module.....!\n");
+		printk(KERN_NOTICE "________________________\n");
+		
+		printk(KERN_INFO "|Loading module.....\n");
 	}
 	return 0;
 }
@@ -80,10 +86,12 @@ static int __init devstate_init(void){
 /*-----------------------------------------------------------------------*/
 //end
 /*-----------------------------------------------------------------------*/
-static void __exit devstate_exit(void){
-	remove_proc_entry("proc_rw", NULL);
-	printk(KERN_INFO "Removing module.....!\n");
+static void __exit proc_exit(void){
+	remove_proc_entry(moduleName, NULL);
+	printk(KERN_INFO "Removing module.....\n");
+	printk(KERN_NOTICE "________________________|\n");
+
 }
 
-module_init(devstate_init);
-module_exit(devstate_exit);
+module_init(proc_init);
+module_exit(proc_exit);
